@@ -1,2 +1,4 @@
 /node_modules/
 /nbproject/
+/nv-sessions.sqlite
+/nodervisor.sqlite
