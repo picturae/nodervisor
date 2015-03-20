@@ -19,18 +19,15 @@ var summaryLabel = '';
 for (state in sortedstatuses) {
     var stateColor = 'info';
     switch (sortedstatuses[state]) {
-        case 'RUNNING': {
+        case 'RUNNING':
             stateColor = 'success';
-        }
-        break;
-        case 'STOPPED': {
+            break;
+        case 'STOPPED':
             stateColor = 'warning';
-        }
-        break;
-        case 'FATAL': {
+            break;
+        default: // FATAL
             stateColor = 'danger';
-        }
-        break;
+            break;
     }
     summaryLabel += ' <span class="label label-' + stateColor + '">' + hostSummary[sortedstatuses[state]] + '</span>';
 }
@@ -127,7 +124,7 @@ for (state in sortedstatuses) {
                             }
                         }
                     %>
-                    <a href="/log/<%= host.idHost %>/<%= processFullname %>/out" class="btn btn-default"><i class="glyphicon glyphicon-tasks"></i></a>
+                    <a href="/log/<%= host.idHost %>/<%= processFullname %>/out" class="btn btn-default" title="View log tail"><i class="glyphicon glyphicon-tasks"></i></a>
                 </td>
             </tr>
         <% } %>

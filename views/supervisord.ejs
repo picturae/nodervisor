@@ -10,6 +10,25 @@
                         <span class="btn-label"><i class="glyphicon glyphicon-refresh"></i></span>
                         <span class="btn-text">Refresh on</span>
                     </button>
+                    <a href="/log/out" class="btn btn-default pull-right" id="all-logs" style="margin-left: 2em" title="View log for all processes (max <%= maxLogs %>)">
+                        <i class="glyphicon glyphicon-tasks"></i>
+                    </a>
+                    <div class="input-group">
+                        <label class="input-group-addon" for="filter-name" id="filter-label">Filter</label>
+                        <input type="text" class="form-control" id="filter-name" placeholder="Name" aria-describedby="filter-label" />
+                        <label class="input-group-addon" for="filter-state">State:</label>
+                        <select class="form-control" id="filter-state">
+                            <option></option>
+                            <option>STOPPED</option>
+                            <option>STARTING</option>
+                            <option>RUNNING</option>
+                            <option>BACKOFF</option>
+                            <option>STOPPING</option>
+                            <option>EXITED</option>
+                            <option>FATAL</option>
+                            <option>UNKNOWN</option>
+                        </select>
+                    </div>
                     <hr>
                     <div id="hosts-listing">
                     </div>
@@ -19,8 +38,9 @@
         </div> <!-- #main-container -->
     </div>
     <script type="text/javascript">
-        var refresh = true;
+        var updateInterval;
         var hostTablesCollapse = [];
+        var currentHostsState = {};
         <%
             var sessRole = '';
             if (typeof session.user != 'undefined'){
@@ -30,37 +50,82 @@
         var uiRole = '<%= sessRole %>';
 
         function updateList() {
-            if (refresh == true) {
-                $.ajax({
-                    url: '/ajax/supervisord',
-                    type: 'get',
-                    dataType: 'json',
-                    success: function(hosts){
-                        $('#hosts-listing').html('');
+            $.ajax({
+                url: '/ajax/supervisord',
+                type: 'get',
+                dataType: 'json',
+                success: renderHosts
+            });
+        }
+        function renderHosts(hosts) {
+            if (typeof hosts === 'undefined') {
+                hosts = currentHostsState;
+            } else {
+                currentHostsState = hosts;
+            }
+            $('#hosts-listing').html('');
 
-                        var keys = Object.keys(hosts);
-                        keys.sort();
+            var keys = Object.keys(hosts), processIds = [];
+            keys.sort();
 
-                        keys.forEach(function(key){
-                            if (!hostTablesCollapse[key])
-                            {
-                                hostTablesCollapse[key] = 'down';
+            keys.forEach(function(key){
+                if (!hostTablesCollapse[key]) {
+                    hostTablesCollapse[key] = 'down';
+                }
+
+                if (hosts[key].data.code) {
+                    $('#hosts-listing').append(new EJS({url: '/partials/hosts-listing.ejs'}).render({host: hosts[key].host, error: hosts[key].data.code, role: uiRole}));
+                } else {
+                    var processes = [],
+                        filterName = $('#filter-name').val(),
+                        filterNameCase = /[A-Z]/.test(filterName),
+                        filterState = $('#filter-state').val();
+                    hosts[key].data.forEach(function(p) {
+                        if (filterName) {
+                            // if there are upper case letters, perform case sensitive match
+                            var processName = filterNameCase ? p.name : p.name.toLowerCase();
+                            if (processName.indexOf(filterName) === -1) {
+                                return;
                             }
-
-                            if (hosts[key].data.code) {
-                                $('#hosts-listing').append(new EJS({url: '/partials/hosts-listing.ejs'}).render({host: hosts[key].host, error: hosts[key].data.code, role: uiRole}));
-                            } else {
-                                $('#hosts-listing').append(new EJS({url: '/partials/hosts-listing.ejs'}).render({host: hosts[key].host, processes: hosts[key].data, hostCollapsed: hostTablesCollapse[key], role: uiRole}));
-                            }
-                        });
-                    }
+                        }
+                        if (filterState && filterState !== p.statename) {
+                            return;
+                        }
+                        processes.push(p);
+                        var processFullname = (p.group ? p.group + ':' : '') + p.name + '@' + key;
+                        processIds.push(processFullname)
+                    });
+                    $('#hosts-listing').append(new EJS({url: '/partials/hosts-listing.ejs'}).render({host: hosts[key].host, processes: processes, hostCollapsed: hostTablesCollapse[key], role: uiRole, filterName: $('#filter-name').val(), filterState: $('#filter-state').val()}));
+                }
+            });
+            if (processIds.length && processIds.length < 8 && $('.glyphicon-collapse-up').length === 0) {
+                // if there are only a few processes just display them
+                $('.table-collapse').each(function() {
+                    var table = $(this).attr('data-table');
+                    $(this).find('i').removeClass('glyphicon-collapse-down').addClass('glyphicon-collapse-up');
+                    $("table[id='" + table + "']").toggle(true);
+                    hostTablesCollapse[table] = 'up';
                 });
+            }
+            if (processIds.length > <%= maxLogs %>) { // max number of processes to view log at once
+                $('#all-logs').attr('disabled', 'disabled');
+            } else {
+                $('#all-logs').attr('disabled', null).attr('href', '/logs/out/0?' + $.param({ids: processIds}));
             }
         }
 
         $(document).ready(function(){
-            updateList();
-            var updateInterval = setInterval('updateList()', 5000);
+            $('#filter-name').focus().on('input', function() {
+                var $this = $(this);
+                var val = $this.val();
+                setTimeout(function() {
+                    val == $this.val() && renderHosts();
+                }, 350); // don't filter on every keystroke
+            });
+            refreshOn();
+            $('#filter-state').focus().on('change', function() {
+                renderHosts();
+            });
 
             $('#hosts-listing').on('click', '.super-action', function(){
                 var action = $(this).attr('data-action');
@@ -93,12 +158,13 @@
             });
 
             function refreshOn() {
-                refresh = true;
+                updateList();
+                updateInterval = setInterval(updateList, 5000);
                 $('#refresh-toggle').addClass('active').removeClass('btn-danger').addClass('btn-success').find('.btn-text').text('Refresh on');
             }
 
             function refreshOff() {
-                refresh = false;
+                clearInterval(updateInterval);
                 $('#refresh-toggle').removeClass('active').removeClass('btn-success').addClass('btn-danger').find('.btn-text').text('Refresh off');
             }
 

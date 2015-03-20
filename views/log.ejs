@@ -1,27 +1,52 @@
 <%= include header.ejs %>
     <%= include menu.ejs %>
-    <div class="container">
+    <div class="container log-container">
         <div class="main-container container">
             <div class="main wrapper clearfix">
 
                 <article>
-                	<% if (typeof data.error != 'undefined') { %>
+                	<% if (error) { %>
                 		<div class="alert alert-danger">
                 			<strong>Error!</strong>
-                			<%= data.error %>
+                			<%= error %>
                 		</div>
                 	<% } else { %>
                     	<div class="row">
                     		<div class="col-md-12">
-                                <h3><%= data.host.Name + ' - ' + process + ' (Std' + type + ')' %></h3>
-                                <button type="button" id="refresh-toggle" class="btn btn-labeled btn-success active pull-right" style="margin-top: -50px;"><span class="btn-label"><i class="glyphicon glyphicon-refresh"></i></span><span class="btn-text">Refresh on</span></button>
-                                <% if (type == 'out') { %>
-                                    <a href="err" class="btn btn-danger pull-right" style="margin-top: -50px; margin-right: 140px;">Stderr</a>
-                                <% } else { %>
-                                    <a href="out" class="btn btn-default pull-right" style="margin-top: -50px; margin-right: 140px;">Stdout</a>
+                                <% if (!split) { %>
+                                    <% for (var i = 0; i < processes.length; i++) { %>
+                                    <h3><%= hosts[processes[i].host].Name + ' - ' + processes[i].process + ' (Std' + type + ')' %></h3>
+                                    <% } %>
                                 <% } %>
-                    			<pre id="log-data">
-                                </pre>
+                                <div class="log-btns pull-right <%= split ? '' : 'combined' %>">
+                                    <% if (type == 'out') { %>
+                                    <a href="<%= url.replace('/out', '/err') %>" class="btn btn-danger">Stderr</a>
+                                    <% } else { %>
+                                    <a href="<%= url.replace('/err', '/out') %>" class="btn btn-default">Stdout</a>
+                                    <% } %>
+                                    <% if (processes.length > 1) { %>
+                                        <% if (split) { %>
+                                        <a href="<%= url.replace(type + '/1', type + '/0') %>" id="combine" class="btn btn-labeled btn-primary"><span class="btn-label"><i class="glyphicon glyphicon-align-justify"></i></span><span class="btn-text">Combine</span></a>
+                                        <% } else { %>
+                                        <a href="<%= url.replace(type + '/0', type + '/1') %>" id="split" class="btn btn-labeled btn-primary"><span class="btn-label"><i class="glyphicon glyphicon-th-large"></i></span><span class="btn-text">Split</span></a>
+                                        <% } %>
+                                    <% } %>
+                                    <button type="button" id="refresh-toggle" class="btn btn-labeled btn-success active"><span class="btn-label"><i class="glyphicon glyphicon-refresh"></i></span><span class="btn-text">Refresh on</span></button>
+                                </div>
+                                <% if (split) { %>
+                                    <% for (var i = 0; i < processes.length; i++) { %>
+                                    <% if ((i+3) % 3 === 0) { %>
+                                    <div class="clearfix"></div>
+                                    <% } %>
+                                    <div class="pull-left" style="width:<%= Math.max(99/processes.length, 33) %>%">
+                                        <h3 class="log-title"><%= hosts[processes[i].host].Name + ' - ' + processes[i].process + ' (Std' + type + ')' %></h3>
+                                        <pre id="log-data<%= i %>">
+                                        </pre>
+                                    </div>
+                                    <% } %>
+                                <% } else { %>
+                                    <pre id="log-data"></pre>
+                                <% } %>
                     		</div>
                     	</div>
                     <% } %>
@@ -30,40 +55,40 @@
             </div> <!-- #main -->
         </div> <!-- #main-container -->
     </div>
+    <% if (!error) { %>
     <script type="text/javascript">
-        var process = '<%= process %>';
-        var host = '<%= host %>';
+        var processes = <%- JSON.stringify(processes) %>;
         var type = '<%= type %>';
-        var offset = 0;
-        var refresh = true;
+        var split = '<%= split %>';
+        var updateInterval;
 
         function readLog() {
-            if (refresh === true) {
+            $.each(processes, function(i, p) {
                 $.ajax({
                     url: '/ajax/supervisorlog',
                     type: 'get',
                     dataType: 'json',
-                    data: ({host: host, process: process, type: type, offset: offset}),
+                    data: ({host: p.host, process: p.process, type: type, offset: p.offset || 0}),
                     success: function(result){
-                        offset = result.data[1];
-                        $('#log-data').append(result.data[0]);
-                        console.log(result);
+                        p.offset = result.data[1];
+                        $('#log-data' + i + ', #log-data').append(result.data[0]);
+//                        console.log(result);
                     }
                 });
-            }
+            });
         }
 
         $(document).ready(function(){
-            readLog();
-            var updateInterval = setInterval('readLog()', 5000);
+            refreshOn()
 
             function refreshOn() {
-                refresh = true;
+                readLog();
+                updateInterval = setInterval(readLog, 5000);
                 $('#refresh-toggle').addClass('active').removeClass('btn-danger').addClass('btn-success').find('.btn-text').text('Refresh on');
             }
 
             function refreshOff() {
-                refresh = false;
+                clearInterval(updateInterval);
                 $('#refresh-toggle').removeClass('active').removeClass('btn-success').addClass('btn-danger').find('.btn-text').text('Refresh off');
             }
 
@@ -76,4 +101,5 @@
             });
         });
     </script>
+    <% } %>
 <%= include footer.ejs %>
