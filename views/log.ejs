@@ -39,7 +39,7 @@
                                     <div class="clearfix"></div>
                                     <% } %>
                                     <div class="pull-left" style="width:<%= Math.max(99/processes.length, 33) %>%">
-                                        <h3><%= hosts[processes[i].host].Name + ' - ' + processes[i].process + ' (Std' + type + ')' %></h3>
+                                        <h3 class="log-title"><%= hosts[processes[i].host].Name + ' - ' + processes[i].process + ' (Std' + type + ')' %></h3>
                                         <pre id="log-data<%= i %>">
                                         </pre>
                                     </div>
