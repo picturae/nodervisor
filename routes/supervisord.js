@@ -3,6 +3,7 @@
  */
 
 exports.supervisord = function(params) {
+	var config = params.config;
 	return function(req, res) {
 
 		if (!req.session.loggedIn) {
@@ -11,7 +12,8 @@ exports.supervisord = function(params) {
 
 		res.render('supervisord', {
 			title: 'Nodervisor - All Hosts',
-			session: req.session
+			session: req.session,
+			maxLogs: config.options.maxLogs
 		});
 	};
 };

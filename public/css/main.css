@@ -426,3 +426,14 @@ nav a:hover {
         page-break-after: avoid;
     }
 }
+
+/* LOG */
+.log-container, .log-container .container {
+    width: 100% !important;
+}
+.log-btns.combined {
+    margin-top: -50px;
+}
+.log-btns .btn {
+    margin-left: 0.2em;
+}

@@ -24,8 +24,8 @@ function routes(params) {
 	 */
 
 	// Home page
-	app.get('/', routes['supervisord']());
-	app.get('/dashboard', routes['dashboard']());
+	app.get('/', routes['supervisord'](params));
+	app.get('/dashboard', routes['dashboard'](params));
 
 	// Hosts page
 	app.get('/hosts', routes['hosts'](params));
@@ -60,6 +60,7 @@ function routes(params) {
 
 	// Logs page
 	app.get('/log/:host/:process/:type', routes['log'](params));
+	app.get('/logs/:type/:split', routes['log'](params));
 
 	// Supervisor Control Pages
 	app.get('/ajax/supervisorctl', routes['ajax_supervisorctl'](params));

@@ -46,6 +46,9 @@ config.sessionstore = {
 config.port = process.env.PORT || 3000;
 config.env = process.env.ENV || 'production';
 config.sessionSecret = process.env.SECRET || '1234567890ABCDEF';
+config.options = {
+    maxLogs: 12
+};
 
 // Read and write settings
 config.readHosts = function(db, callback){
